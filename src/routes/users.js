@@ -130,8 +130,8 @@ router.post("/trips/plan", requireAuth, async(req, res) => {
             trip_date,
             stop_count: parsedStopCount,
             favorites,
-            profile_interests: Array.isArray(userData ? .interests) ? userData.interests : [],
-            behavior_queue: Array.isArray(userData ? .behaviorQueue) ? userData.behaviorQueue : [],
+            profile_interests: Array.isArray(userData?.interests) ? userData.interests : [],
+            behavior_queue: Array.isArray(userData?.behaviorQueue) ? userData.behaviorQueue : [],
         });
 
         return res.json(result);
