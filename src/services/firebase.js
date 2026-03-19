@@ -1,47 +1,51 @@
-import admin from "firebase-admin";
+﻿import admin from "firebase-admin";
 
 let db;
+
+function parseServiceAccountFromEnv() {
+    const inlineJson = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    const b64Json = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_B64;
+
+    if (inlineJson) {
+        try {
+            return JSON.parse(inlineJson);
+        } catch {
+            // Ignore malformed JSON and fall back to other formats.
+        }
+    }
+
+    if (b64Json) {
+        try {
+            const decoded = Buffer.from(b64Json, "base64").toString("utf8");
+            return JSON.parse(decoded);
+        } catch {
+            // Ignore malformed base64 and fall back to explicit FIREBASE_* fields.
+        }
+    }
+
+    return null;
+}
 
 export function initFirebase() {
     if (admin.apps.length > 0) return;
 
-    const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    const rawServiceAccountB64 = process.env.FIREBASE_SERVICE_ACCOUNT_KEY_B64;
+    const rawServiceAccount = parseServiceAccountFromEnv();
+    const serviceAccount = rawServiceAccount ?
+        {
+            projectId: rawServiceAccount.project_id || rawServiceAccount.projectId,
+            clientEmail: rawServiceAccount.client_email || rawServiceAccount.clientEmail,
+            privateKey: (rawServiceAccount.private_key || rawServiceAccount.privateKey || "").replace(/\\n/g, "\n"),
+        } :
+        null;
 
-    if (!rawServiceAccount && !rawServiceAccountB64) {
-        throw new Error(
-            "Firebase Admin credentials missing. Set FIREBASE_SERVICE_ACCOUNT_KEY_B64 (recommended) or FIREBASE_SERVICE_ACCOUNT_KEY (single-line JSON)."
-        );
-    }
-
-    let serviceAccount;
-
-    if (rawServiceAccountB64) {
-        const decoded = Buffer.from(rawServiceAccountB64, "base64").toString("utf8");
-        serviceAccount = JSON.parse(decoded);
-    } else {
-        // Handle possible wrapping quotes from .env and parse JSON.
-        // With multi-line .env values, dotenv can leave stray quotes/newlines around the value.
-        let normalized = rawServiceAccount.trim();
-        if (normalized.startsWith("'") || normalized.startsWith('"')) normalized = normalized.slice(1);
-        if (normalized.endsWith("'") || normalized.endsWith('"')) normalized = normalized.slice(0, -1);
-
-        try {
-            serviceAccount = JSON.parse(normalized);
-        } catch (e) {
-            // If dotenv parsing leaves extra characters, recover by slicing the JSON object.
-            const start = normalized.indexOf("{");
-            const end = normalized.lastIndexOf("}");
-            if (start !== -1 && end !== -1 && end > start) {
-                serviceAccount = JSON.parse(normalized.slice(start, end + 1));
-            } else {
-                throw e;
-            }
-        }
-    }
+    const credential = serviceAccount || {
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+    };
 
     admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+        credential: admin.credential.cert(credential),
     });
 
     db = admin.firestore();
@@ -49,7 +53,7 @@ export function initFirebase() {
 }
 
 export function getDb() {
-    if (!db) throw new Error("Firestore not initialized — call initFirebase() first");
+    if (!db) throw new Error("Firestore not initialized - call initFirebase() first");
     return db;
 }
 

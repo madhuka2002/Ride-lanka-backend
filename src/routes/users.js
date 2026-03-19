@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getDb } from "../services/firebase.js";
 import { requireAuth } from "../middleware/auth.js";
-import { fetchRecommendations } from "../services/aiService.js";
+import { fetchRecommendations, fetchTripPlan } from "../services/aiService.js";
 
 const router = Router();
 
@@ -94,6 +94,50 @@ router.get("/recommendations", requireAuth, async(req, res) => {
     } catch (err) {
         console.error("[recommendations GET]", err);
         return res.status(500).json({ error: "Failed to fetch recommendations" });
+    }
+});
+
+// ─── Generate trip plan for new trip form ─────────────────────────────────
+// POST /api/users/trips/plan
+// Body: { trip_name, trip_date, stop_count, favorites }
+router.post("/trips/plan", requireAuth, async(req, res) => {
+    try {
+        const { trip_name, trip_date, stop_count, favorites = [] } = req.body;
+
+        if (!trip_name || typeof trip_name !== "string") {
+            return res.status(400).json({ error: "'trip_name' is required" });
+        }
+        if (!trip_date || typeof trip_date !== "string") {
+            return res.status(400).json({ error: "'trip_date' is required" });
+        }
+
+        const parsedStopCount = Number(stop_count);
+        if (!Number.isInteger(parsedStopCount) || parsedStopCount < 1 || parsedStopCount > 10) {
+            return res.status(400).json({ error: "'stop_count' must be an integer between 1 and 10" });
+        }
+
+        if (!Array.isArray(favorites) || favorites.length === 0) {
+            return res.status(400).json({ error: "'favorites' must be a non-empty array" });
+        }
+
+        const db = getDb();
+        const uid = req.user.uid;
+        const userSnap = await db.collection("users").doc(uid).get();
+        const userData = userSnap.exists ? userSnap.data() : {};
+
+        const result = await fetchTripPlan(uid, {
+            trip_name: trip_name.trim(),
+            trip_date,
+            stop_count: parsedStopCount,
+            favorites,
+            profile_interests: Array.isArray(userData ? .interests) ? userData.interests : [],
+            behavior_queue: Array.isArray(userData ? .behaviorQueue) ? userData.behaviorQueue : [],
+        });
+
+        return res.json(result);
+    } catch (err) {
+        console.error("[trips/plan]", err);
+        return res.status(500).json({ error: "Failed to generate trip plan" });
     }
 });
 
