@@ -31,3 +31,30 @@ export async function fetchRecommendations(userId, interests, behaviorQueue) {
 
     return response.json();
 }
+
+/**
+ * Call the AI service to generate a trip plan with N stops.
+ * @param {string} userId
+ * @param {object} planInput
+ * @returns {Promise<object>}
+ */
+export async function fetchTripPlan(userId, planInput) {
+    const response = await fetch(`${AI_URL}/api/ai/trip-plan`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-backend-secret": SECRET,
+        },
+        body: JSON.stringify({
+            user_id: userId,
+            ...planInput,
+        }),
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`AI trip-plan error ${response.status}: ${text}`);
+    }
+
+    return response.json();
+}
