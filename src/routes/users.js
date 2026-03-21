@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getDb } from "../services/firebase.js";
 import { requireAuth } from "../middleware/auth.js";
-import { fetchRecommendations, fetchTripPlan, fetchCulture } from "../services/aiService.js";
+import { fetchRecommendations, fetchTripPlan, fetchCulture, searchPlaceAI } from "../services/aiService.js";
 
 const router = Router();
 
@@ -204,6 +204,25 @@ router.get("/trips", requireAuth, async (req, res) => {
     } catch (err) {
         console.error("[trips GET]", err);
         return res.status(500).json({ error: "Failed to fetch trips" });
+    }
+});
+
+// ─── Search for a generic place to append to route ────────────────────────
+// POST /api/users/trips/search-place
+// Body: { query: string }
+router.post("/trips/search-place", requireAuth, async (req, res) => {
+    try {
+        const { query } = req.body;
+        if (!query || typeof query !== "string") {
+            return res.status(400).json({ error: "'query' is required" });
+        }
+
+        const uid = req.user.uid;
+        const result = await searchPlaceAI(uid, query);
+        return res.json(result);
+    } catch (err) {
+        console.error("[trips/search-place]", err);
+        return res.status(500).json({ error: err.message || "Failed to search place" });
     }
 });
 
