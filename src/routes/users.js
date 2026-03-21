@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { getDb } from "../services/firebase.js";
 import { requireAuth } from "../middleware/auth.js";
-import { fetchRecommendations, fetchTripPlan } from "../services/aiService.js";
+import { fetchRecommendations, fetchTripPlan, fetchCulture } from "../services/aiService.js";
 
 const router = Router();
 
 // ─── Save / update user profile & preferences after registration ───────────
 // POST /api/users/profile
 // Body: { name, interests: string[] }
-router.post("/profile", requireAuth, async(req, res) => {
+router.post("/profile", requireAuth, async (req, res) => {
     try {
         const { name, interests } = req.body;
         if (!Array.isArray(interests) || interests.length === 0) {
@@ -38,7 +38,7 @@ router.post("/profile", requireAuth, async(req, res) => {
 
 // ─── Get current user profile ──────────────────────────────────────────────
 // GET /api/users/profile
-router.get("/profile", requireAuth, async(req, res) => {
+router.get("/profile", requireAuth, async (req, res) => {
     try {
         const db = getDb();
         const snap = await db.collection("users").doc(req.user.uid).get();
@@ -52,7 +52,7 @@ router.get("/profile", requireAuth, async(req, res) => {
 
 // ─── Trigger / refresh recommendations for the signed-in user ─────────────
 // POST /api/users/recommendations/refresh
-router.post("/recommendations/refresh", requireAuth, async(req, res) => {
+router.post("/recommendations/refresh", requireAuth, async (req, res) => {
     try {
         const db = getDb();
         const uid = req.user.uid;
@@ -83,7 +83,7 @@ router.post("/recommendations/refresh", requireAuth, async(req, res) => {
 
 // ─── Get cached recommendations ───────────────────────────────────────────
 // GET /api/users/recommendations
-router.get("/recommendations", requireAuth, async(req, res) => {
+router.get("/recommendations", requireAuth, async (req, res) => {
     try {
         const db = getDb();
         const snap = await db.collection("users").doc(req.user.uid).get();
@@ -100,7 +100,7 @@ router.get("/recommendations", requireAuth, async(req, res) => {
 // ─── Generate trip plan for new trip form ─────────────────────────────────
 // POST /api/users/trips/plan
 // Body: { trip_name, trip_date, stop_count, favorites }
-router.post("/trips/plan", requireAuth, async(req, res) => {
+router.post("/trips/plan", requireAuth, async (req, res) => {
     try {
         const { trip_name, trip_date, stop_count, favorites = [] } = req.body;
 
@@ -112,8 +112,8 @@ router.post("/trips/plan", requireAuth, async(req, res) => {
         }
 
         const parsedStopCount = Number(stop_count);
-        if (!Number.isInteger(parsedStopCount) || parsedStopCount < 1 || parsedStopCount > 10) {
-            return res.status(400).json({ error: "'stop_count' must be an integer between 1 and 10" });
+        if (!Number.isInteger(parsedStopCount) || parsedStopCount < 1 || parsedStopCount > 20) {
+            return res.status(400).json({ error: "'stop_count' must be an integer between 1 and 20" });
         }
 
         if (!Array.isArray(favorites) || favorites.length === 0) {
@@ -138,6 +138,72 @@ router.post("/trips/plan", requireAuth, async(req, res) => {
     } catch (err) {
         console.error("[trips/plan]", err);
         return res.status(500).json({ error: "Failed to generate trip plan" });
+    }
+});
+
+// ─── Get cultural info for a place ─────────────────────────────────────────
+// POST /api/users/trips/culture
+// Body: { place_name }
+router.post("/trips/culture", requireAuth, async (req, res) => {
+    try {
+        const { place_name } = req.body;
+        if (!place_name || typeof place_name !== "string") {
+            return res.status(400).json({ error: "'place_name' is required" });
+        }
+
+        const uid = req.user.uid;
+        const result = await fetchCulture(uid, place_name);
+        return res.json(result);
+    } catch (err) {
+        console.error("[trips/culture]", err);
+        return res.status(500).json({ error: err.message || "Failed to fetch cultural info" });
+    }
+});
+
+// ─── Save a newly generated trip ──────────────────────────────────────────
+// POST /api/users/trips
+// Body: { trip_name: string, trip_date: string, stop_count: number, favorites: string[], stops: object[] }
+router.post("/trips", requireAuth, async (req, res) => {
+    try {
+        const { trip_name, trip_date, stop_count, favorites, stops } = req.body;
+        if (!trip_name || !trip_date || !stops) {
+            return res.status(400).json({ error: "Missing required trip fields" });
+        }
+
+        const db = getDb();
+        const uid = req.user.uid;
+        
+        const newTrip = {
+            trip_name,
+            trip_date,
+            stop_count: Number(stop_count) || 0,
+            favorites: favorites || [],
+            stops,
+            createdAt: new Date().toISOString(),
+        };
+
+        const docRef = await db.collection("users").doc(uid).collection("trips").add(newTrip);
+        return res.json({ success: true, tripId: docRef.id });
+    } catch (err) {
+        console.error("[trips/save]", err);
+        return res.status(500).json({ error: "Failed to save trip" });
+    }
+});
+
+// ─── Get all saved trips for user ─────────────────────────────────────────
+// GET /api/users/trips
+router.get("/trips", requireAuth, async (req, res) => {
+    try {
+        const db = getDb();
+        const uid = req.user.uid;
+        
+        const snap = await db.collection("users").doc(uid).collection("trips").orderBy("createdAt", "desc").get();
+        const trips = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        return res.json({ trips });
+    } catch (err) {
+        console.error("[trips GET]", err);
+        return res.status(500).json({ error: "Failed to fetch trips" });
     }
 });
 

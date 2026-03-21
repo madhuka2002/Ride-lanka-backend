@@ -58,3 +58,28 @@ export async function fetchTripPlan(userId, planInput) {
 
     return response.json();
 }
+
+/**
+ * Call the AI service to fetch cultural rules for a place
+ * @param {string} userId
+ * @param {string} placeName
+ */
+export async function fetchCulture(userId, placeName) {
+    const response = await fetch(`${AI_URL}/api/ai/culture-info`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-backend-secret": SECRET,
+        },
+        body: JSON.stringify({
+            place_name: placeName
+        }),
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`AI culture error ${response.status}: ${text}`);
+    }
+
+    return response.json();
+}
