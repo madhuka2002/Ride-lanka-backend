@@ -160,4 +160,51 @@ router.post("/trips/culture", requireAuth, async (req, res) => {
     }
 });
 
+// ─── Save a newly generated trip ──────────────────────────────────────────
+// POST /api/users/trips
+// Body: { trip_name: string, trip_date: string, stop_count: number, favorites: string[], stops: object[] }
+router.post("/trips", requireAuth, async (req, res) => {
+    try {
+        const { trip_name, trip_date, stop_count, favorites, stops } = req.body;
+        if (!trip_name || !trip_date || !stops) {
+            return res.status(400).json({ error: "Missing required trip fields" });
+        }
+
+        const db = getDb();
+        const uid = req.user.uid;
+        
+        const newTrip = {
+            trip_name,
+            trip_date,
+            stop_count: Number(stop_count) || 0,
+            favorites: favorites || [],
+            stops,
+            createdAt: new Date().toISOString(),
+        };
+
+        const docRef = await db.collection("users").doc(uid).collection("trips").add(newTrip);
+        return res.json({ success: true, tripId: docRef.id });
+    } catch (err) {
+        console.error("[trips/save]", err);
+        return res.status(500).json({ error: "Failed to save trip" });
+    }
+});
+
+// ─── Get all saved trips for user ─────────────────────────────────────────
+// GET /api/users/trips
+router.get("/trips", requireAuth, async (req, res) => {
+    try {
+        const db = getDb();
+        const uid = req.user.uid;
+        
+        const snap = await db.collection("users").doc(uid).collection("trips").orderBy("createdAt", "desc").get();
+        const trips = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        return res.json({ trips });
+    } catch (err) {
+        console.error("[trips GET]", err);
+        return res.status(500).json({ error: "Failed to fetch trips" });
+    }
+});
+
 export default router;
