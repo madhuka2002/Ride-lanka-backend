@@ -59,6 +59,42 @@ export async function fetchTripPlan(userId, planInput) {
     return response.json();
 }
 
+export async function fetchReorder(userId, stops, route_preference) {
+    const response = await fetch(`${AI_URL}/api/ai/reorder`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-backend-secret": SECRET,
+        },
+        body: JSON.stringify({ user_id: userId, stops, route_preference }),
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`AI reorder error ${response.status}: ${text}`);
+    }
+
+    return response.json();
+}
+
+export async function searchPlaceAI(userId, query) {
+    const response = await fetch(`${AI_URL}/api/ai/search-place`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-backend-secret": SECRET,
+        },
+        body: JSON.stringify({ query }),
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`AI search error ${response.status}: ${text}`);
+    }
+
+    return response.json();
+}
+
 /**
  * Call the AI service to fetch cultural rules for a place
  * @param {string} userId

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getDb } from "../services/firebase.js";
 import { requireAuth } from "../middleware/auth.js";
-import { fetchRecommendations, fetchTripPlan, fetchCulture } from "../services/aiService.js";
+import { fetchRecommendations, fetchTripPlan, fetchCulture, searchPlaceAI, fetchReorder } from "../services/aiService.js";
 
 const router = Router();
 
@@ -99,10 +99,10 @@ router.get("/recommendations", requireAuth, async (req, res) => {
 
 // ─── Generate trip plan for new trip form ─────────────────────────────────
 // POST /api/users/trips/plan
-// Body: { trip_name, trip_date, stop_count, favorites }
+// Body: { trip_name, trip_date, stop_count, favorites, route_preference }
 router.post("/trips/plan", requireAuth, async (req, res) => {
     try {
-        const { trip_name, trip_date, stop_count, favorites = [] } = req.body;
+        const { trip_name, trip_date, stop_count, favorites = [], route_preference = "shortest" } = req.body;
 
         if (!trip_name || typeof trip_name !== "string") {
             return res.status(400).json({ error: "'trip_name' is required" });
@@ -132,6 +132,7 @@ router.post("/trips/plan", requireAuth, async (req, res) => {
             favorites,
             profile_interests: Array.isArray(userData?.interests) ? userData.interests : [],
             behavior_queue: Array.isArray(userData?.behaviorQueue) ? userData.behaviorQueue : [],
+            route_preference,
         });
 
         return res.json(result);
@@ -190,6 +191,38 @@ router.post("/trips", requireAuth, async (req, res) => {
     }
 });
 
+// ─── Update an existing trip (Active/Completed status & Memories) ─────────
+// PUT /api/users/trips/:tripId
+// Body: { status?: string, stops?: object[] }
+router.put("/trips/:tripId", requireAuth, async (req, res) => {
+    try {
+        const { tripId } = req.params;
+        const updates = req.body;
+        
+        if (!tripId || !updates || Object.keys(updates).length === 0) {
+            return res.status(400).json({ error: "Missing tripId or update data" });
+        }
+
+        const db = getDb();
+        const uid = req.user.uid;
+        const tripRef = db.collection("users").doc(uid).collection("trips").doc(tripId);
+        
+        const doc = await tripRef.get();
+        if (!doc.exists) {
+            return res.status(404).json({ error: "Trip not found" });
+        }
+
+        updates.updatedAt = new Date().toISOString();
+        
+        await tripRef.set(updates, { merge: true });
+        
+        return res.json({ success: true, tripId });
+    } catch (err) {
+        console.error("[trips/update]", err);
+        return res.status(500).json({ error: "Failed to update trip" });
+    }
+});
+
 // ─── Get all saved trips for user ─────────────────────────────────────────
 // GET /api/users/trips
 router.get("/trips", requireAuth, async (req, res) => {
@@ -204,6 +237,41 @@ router.get("/trips", requireAuth, async (req, res) => {
     } catch (err) {
         console.error("[trips GET]", err);
         return res.status(500).json({ error: "Failed to fetch trips" });
+    }
+});
+
+// ─── Reorder an array of stops based on algorithm ─────────────────────────
+// POST /api/users/trips/reorder
+// Body: { stops: array, route_preference: string }
+router.post("/trips/reorder", requireAuth, async (req, res) => {
+    try {
+        const { stops, route_preference } = req.body;
+        if (!Array.isArray(stops)) return res.status(400).json({ error: "'stops' array required" });
+        const uid = req.user.uid;
+        const result = await fetchReorder(uid, stops, route_preference);
+        return res.json(result);
+    } catch (err) {
+        console.error("[trips/reorder]", err);
+        return res.status(500).json({ error: "Failed to reorder stops" });
+    }
+});
+
+// ─── Search for a generic place to append to route ────────────────────────
+// POST /api/users/trips/search-place
+// Body: { query: string }
+router.post("/trips/search-place", requireAuth, async (req, res) => {
+    try {
+        const { query } = req.body;
+        if (!query || typeof query !== "string") {
+            return res.status(400).json({ error: "'query' is required" });
+        }
+
+        const uid = req.user.uid;
+        const result = await searchPlaceAI(uid, query);
+        return res.json(result);
+    } catch (err) {
+        console.error("[trips/search-place]", err);
+        return res.status(500).json({ error: err.message || "Failed to search place" });
     }
 });
 
