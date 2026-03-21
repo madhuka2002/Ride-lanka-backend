@@ -112,8 +112,8 @@ router.post("/trips/plan", requireAuth, async(req, res) => {
         }
 
         const parsedStopCount = Number(stop_count);
-        if (!Number.isInteger(parsedStopCount) || parsedStopCount < 1 || parsedStopCount > 10) {
-            return res.status(400).json({ error: "'stop_count' must be an integer between 1 and 10" });
+        if (!Number.isInteger(parsedStopCount) || parsedStopCount < 1 || parsedStopCount > 20) {
+            return res.status(400).json({ error: "'stop_count' must be an integer between 1 and 20" });
         }
 
         if (!Array.isArray(favorites) || favorites.length === 0) {
