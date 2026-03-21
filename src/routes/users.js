@@ -8,7 +8,7 @@ const router = Router();
 // ─── Save / update user profile & preferences after registration ───────────
 // POST /api/users/profile
 // Body: { name, interests: string[] }
-router.post("/profile", requireAuth, async(req, res) => {
+router.post("/profile", requireAuth, async (req, res) => {
     try {
         const { name, interests } = req.body;
         if (!Array.isArray(interests) || interests.length === 0) {
@@ -38,7 +38,7 @@ router.post("/profile", requireAuth, async(req, res) => {
 
 // ─── Get current user profile ──────────────────────────────────────────────
 // GET /api/users/profile
-router.get("/profile", requireAuth, async(req, res) => {
+router.get("/profile", requireAuth, async (req, res) => {
     try {
         const db = getDb();
         const snap = await db.collection("users").doc(req.user.uid).get();
@@ -52,7 +52,7 @@ router.get("/profile", requireAuth, async(req, res) => {
 
 // ─── Trigger / refresh recommendations for the signed-in user ─────────────
 // POST /api/users/recommendations/refresh
-router.post("/recommendations/refresh", requireAuth, async(req, res) => {
+router.post("/recommendations/refresh", requireAuth, async (req, res) => {
     try {
         const db = getDb();
         const uid = req.user.uid;
@@ -83,7 +83,7 @@ router.post("/recommendations/refresh", requireAuth, async(req, res) => {
 
 // ─── Get cached recommendations ───────────────────────────────────────────
 // GET /api/users/recommendations
-router.get("/recommendations", requireAuth, async(req, res) => {
+router.get("/recommendations", requireAuth, async (req, res) => {
     try {
         const db = getDb();
         const snap = await db.collection("users").doc(req.user.uid).get();
@@ -100,7 +100,7 @@ router.get("/recommendations", requireAuth, async(req, res) => {
 // ─── Generate trip plan for new trip form ─────────────────────────────────
 // POST /api/users/trips/plan
 // Body: { trip_name, trip_date, stop_count, favorites }
-router.post("/trips/plan", requireAuth, async(req, res) => {
+router.post("/trips/plan", requireAuth, async (req, res) => {
     try {
         const { trip_name, trip_date, stop_count, favorites = [] } = req.body;
 
