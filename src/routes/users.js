@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getDb } from "../services/firebase.js";
 import { requireAuth } from "../middleware/auth.js";
-import { fetchRecommendations, fetchTripPlan } from "../services/aiService.js";
+import { fetchRecommendations, fetchTripPlan, fetchCulture } from "../services/aiService.js";
 
 const router = Router();
 
@@ -138,6 +138,25 @@ router.post("/trips/plan", requireAuth, async (req, res) => {
     } catch (err) {
         console.error("[trips/plan]", err);
         return res.status(500).json({ error: "Failed to generate trip plan" });
+    }
+});
+
+// ─── Get cultural info for a place ─────────────────────────────────────────
+// POST /api/users/trips/culture
+// Body: { place_name }
+router.post("/trips/culture", requireAuth, async (req, res) => {
+    try {
+        const { place_name } = req.body;
+        if (!place_name || typeof place_name !== "string") {
+            return res.status(400).json({ error: "'place_name' is required" });
+        }
+
+        const uid = req.user.uid;
+        const result = await fetchCulture(uid, place_name);
+        return res.json(result);
+    } catch (err) {
+        console.error("[trips/culture]", err);
+        return res.status(500).json({ error: err.message || "Failed to fetch cultural info" });
     }
 });
 
