@@ -180,6 +180,7 @@ router.post("/trips", requireAuth, async (req, res) => {
             stop_count: Number(stop_count) || 0,
             favorites: favorites || [],
             stops,
+            status: "Upcoming",
             createdAt: new Date().toISOString(),
         };
 
