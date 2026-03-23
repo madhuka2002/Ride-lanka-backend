@@ -5,6 +5,7 @@ import { initFirebase } from "./services/firebase.js";
 import userRoutes from "./routes/users.js";
 import eventRoutes from "./routes/events.js";
 import questRoutes from "./routes/quests.js";
+import exploreRoutes from "./routes/explore.js";
 
 initFirebase();
 
@@ -18,6 +19,7 @@ app.get("/health", (_req, res) => res.json({ status: "ok", service: "Ride Lanka 
 app.use("/api/users", userRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/quests", questRoutes);
+app.use("/api/explore", exploreRoutes);
 
 // Global error handler
 app.use((err, _req, res, _next) => {
