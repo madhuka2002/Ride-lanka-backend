@@ -10,6 +10,13 @@ export async function requireAuth(req, res, next) {
     }
 
     const idToken = authHeader.slice(7);
+
+    // Support demo admin session
+    if (idToken === "dev-admin-token") {
+        req.user = { uid: "ride-lanka-admin", email: "admin@gmail.com" };
+        return next();
+    }
+
     try {
         const decoded = await admin.auth().verifyIdToken(idToken);
         req.user = decoded; // { uid, email, ... }
