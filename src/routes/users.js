@@ -43,7 +43,12 @@ router.get("/profile", requireAuth, async (req, res) => {
         const db = getDb();
         const snap = await db.collection("users").doc(req.user.uid).get();
         if (!snap.exists) return res.status(404).json({ error: "Profile not found" });
-        return res.json(snap.data());
+        
+        const data = snap.data();
+        if (data.xp === undefined) data.xp = 0;
+        if (!data.badges) data.badges = [];
+        
+        return res.json(data);
     } catch (err) {
         console.error("[users/profile GET]", err);
         return res.status(500).json({ error: "Failed to fetch profile" });

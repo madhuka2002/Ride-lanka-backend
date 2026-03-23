@@ -29,7 +29,7 @@ router.post("/", requireAuth, async (req, res) => {
             return res.status(403).json({ error: "Forbidden: Admins only" });
         }
 
-        const { title, description, reward } = req.body;
+        const { title, description, reward, badgeImage } = req.body;
         if (!title || !description || !reward) {
             return res.status(400).json({ error: "Missing required quest fields" });
         }
@@ -39,6 +39,7 @@ router.post("/", requireAuth, async (req, res) => {
             title,
             description,
             reward,
+            badgeImage: badgeImage || null,
             createdAt: new Date().toISOString(),
         };
 
@@ -69,6 +70,65 @@ router.delete("/:questId", requireAuth, async (req, res) => {
     } catch (err) {
         console.error("[quests DELETE]", err);
         return res.status(500).json({ error: "Failed to delete quest" });
+    }
+});
+
+// ─── Complete a quest and gain XP & Badge ────────────────────────────────
+// POST /api/quests/:questId/complete
+router.post("/:questId/complete", requireAuth, async (req, res) => {
+    try {
+        const { questId } = req.params;
+        const db = getDb();
+        const uid = req.user.uid;
+
+        const questSnap = await db.collection("quests").doc(questId).get();
+        if (!questSnap.exists) return res.status(404).json({ error: "Quest not found" });
+        const questData = questSnap.data();
+
+        let xpGained = 0;
+        if (questData.reward) {
+            const match = questData.reward.match(/\d+/);
+            if (match) xpGained = parseInt(match[0], 10);
+        }
+        
+        const badgeToken = questData.badgeImage ? { 
+            id: questId, 
+            name: questData.title, 
+            url: questData.badgeImage 
+        } : null;
+
+        const userRef = db.collection("users").doc(uid);
+
+        await db.runTransaction(async (tx) => {
+            const userSnap = await tx.get(userRef);
+            if (!userSnap.exists) throw new Error("User profile not found");
+            const userData = userSnap.data();
+            
+            const currentXp = userData.xp || 0;
+            const currentBadges = userData.badges || [];
+            
+            const hasBadge = currentBadges.some(b => b.id === questId);
+            const newBadges = [...currentBadges];
+            if (badgeToken && !hasBadge) {
+                newBadges.push(badgeToken);
+            }
+
+            // Only add XP if they haven't gotten the badge yet (simple anti-abuse)
+            let finalXp = currentXp;
+            if (!hasBadge) {
+                finalXp += xpGained;
+            }
+
+            tx.update(userRef, { 
+                xp: finalXp,
+                badges: newBadges
+            });
+        });
+
+        return res.json({ success: true, xpGained });
+    } catch (err) {
+        console.error("[quests complete]", err);
+        return res.status(500).json({ error: "Failed to complete quest" });
     }
 });
 
