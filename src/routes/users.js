@@ -47,6 +47,7 @@ router.get("/profile", requireAuth, async (req, res) => {
         const data = snap.data();
         if (data.xp === undefined) data.xp = 0;
         if (!data.badges) data.badges = [];
+        if (!data.completedQuests) data.completedQuests = [];
         
         return res.json(data);
     } catch (err) {

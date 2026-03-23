@@ -104,29 +104,34 @@ router.post("/:questId/complete", requireAuth, async (req, res) => {
             if (!userSnap.exists) throw new Error("User profile not found");
             const userData = userSnap.data();
             
+            const completedQuests = userData.completedQuests || [];
+            if (completedQuests.includes(questId)) {
+                throw new Error("ALREADY_COMPLETED");
+            }
+
             const currentXp = userData.xp || 0;
             const currentBadges = userData.badges || [];
             
-            const hasBadge = currentBadges.some(b => b.id === questId);
             const newBadges = [...currentBadges];
-            if (badgeToken && !hasBadge) {
-                newBadges.push(badgeToken);
+            if (badgeToken) {
+                const hasBadge = currentBadges.some(b => b.id === questId);
+                if (!hasBadge) newBadges.push(badgeToken);
             }
 
-            // Only add XP if they haven't gotten the badge yet (simple anti-abuse)
-            let finalXp = currentXp;
-            if (!hasBadge) {
-                finalXp += xpGained;
-            }
+            const newCompletedQuests = [...completedQuests, questId];
 
             tx.update(userRef, { 
-                xp: finalXp,
-                badges: newBadges
+                xp: currentXp + xpGained,
+                badges: newBadges,
+                completedQuests: newCompletedQuests
             });
         });
 
         return res.json({ success: true, xpGained });
     } catch (err) {
+        if (err.message === "ALREADY_COMPLETED") {
+            return res.status(400).json({ error: "Quest already completed by user." });
+        }
         console.error("[quests complete]", err);
         return res.status(500).json({ error: "Failed to complete quest" });
     }
