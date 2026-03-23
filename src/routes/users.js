@@ -5,29 +5,46 @@ import { fetchRecommendations, fetchTripPlan, fetchCulture, searchPlaceAI, fetch
 
 const router = Router();
 
-// ─── Save / update user profile & preferences after registration ───────────
+// ─── Save / update user profile & preferences ───────────
 // POST /api/users/profile
-// Body: { name, interests: string[] }
 router.post("/profile", requireAuth, async (req, res) => {
     try {
-        const { name, interests } = req.body;
-        if (!Array.isArray(interests) || interests.length === 0) {
-            return res.status(400).json({ error: "'interests' must be a non-empty array" });
-        }
-
+        const { name, interests, bio, profilePic, email } = req.body;
+        
         const db = getDb();
         const uid = req.user.uid;
 
-        await db.collection("users").doc(uid).set({
-            uid,
-            name: name || "",
-            email: req.user.email || "",
-            interests,
-            behaviorQueue: [],
-            recommendations: [],
-            recommendationsUpdatedAt: null,
-            createdAt: new Date().toISOString(),
-        }, { merge: true });
+        const updateData = {};
+        if (name !== undefined) updateData.name = name;
+        if (email !== undefined) updateData.email = email;
+        if (bio !== undefined) updateData.bio = bio;
+        if (profilePic !== undefined) updateData.profilePic = profilePic;
+        
+        if (interests !== undefined) {
+             if (!Array.isArray(interests) || interests.length === 0) {
+                 return res.status(400).json({ error: "'interests' must be a non-empty array" });
+             }
+             updateData.interests = interests;
+        }
+
+        const docRef = db.collection("users").doc(uid);
+        const snap = await docRef.get();
+        
+        if (!snap.exists) {
+            updateData.uid = uid;
+            updateData.email = updateData.email || req.user.email || "";
+            updateData.name = updateData.name || "";
+            updateData.interests = updateData.interests || [];
+            updateData.behaviorQueue = [];
+            updateData.recommendations = [];
+            updateData.recommendationsUpdatedAt = null;
+            updateData.xp = 0;
+            updateData.badges = [];
+            updateData.completedQuests = [];
+            updateData.createdAt = new Date().toISOString();
+        }
+
+        await docRef.set(updateData, { merge: true });
 
         return res.json({ success: true });
     } catch (err) {
