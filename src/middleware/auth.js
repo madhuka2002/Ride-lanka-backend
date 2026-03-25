@@ -5,7 +5,9 @@ import { admin } from "../services/firebase.js";
  */
 export async function requireAuth(req, res, next) {
     const authHeader = req.headers.authorization || "";
+    console.log("[requireAuth] Header present:", !!authHeader, "Path:", req.path);
     if (!authHeader.startsWith("Bearer ")) {
+        console.warn("[requireAuth] Missing Bearer token");
         return res.status(401).json({ error: "Missing or invalid Authorization header" });
     }
 

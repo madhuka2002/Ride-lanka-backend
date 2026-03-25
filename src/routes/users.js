@@ -9,16 +9,22 @@ const router = Router();
 // POST /api/users/profile
 router.post("/profile", requireAuth, async (req, res) => {
     try {
-        const { name, interests, bio, profilePic, email } = req.body;
+        console.log("[users/profile] POST received for UID:", req.user?.uid);
+        const { name, firstName, lastName, interests, bio, profilePic, email, dob, phoneNumber } = req.body;
+        console.log("[users/profile] Payload size:", JSON.stringify(req.body).length, "bytes");
         
         const db = getDb();
         const uid = req.user.uid;
 
         const updateData = {};
         if (name !== undefined) updateData.name = name;
+        if (firstName !== undefined) updateData.firstName = firstName;
+        if (lastName !== undefined) updateData.lastName = lastName;
         if (email !== undefined) updateData.email = email;
         if (bio !== undefined) updateData.bio = bio;
         if (profilePic !== undefined) updateData.profilePic = profilePic;
+        if (dob !== undefined) updateData.dob = dob;
+        if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
         
         if (interests !== undefined) {
              if (!Array.isArray(interests) || interests.length === 0) {
