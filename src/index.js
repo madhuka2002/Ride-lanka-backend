@@ -6,7 +6,6 @@ import userRoutes from "./routes/users.js";
 import eventRoutes from "./routes/events.js";
 import questRoutes from "./routes/quests.js";
 import exploreRoutes from "./routes/explore.js";
-import settingsRoutes from "./routes/settings.js";
 
 initFirebase();
 
@@ -21,7 +20,6 @@ app.use("/api/users", userRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/quests", questRoutes);
 app.use("/api/explore", exploreRoutes);
-app.use("/api/settings", settingsRoutes);
 
 // Global error handler
 app.use((err, _req, res, _next) => {
